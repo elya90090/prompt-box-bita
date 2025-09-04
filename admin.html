@@ -5,186 +5,121 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ادمین جعبه پرامپت بیتا</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.10.0/dist/supabase.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background:#f4f4f4; }
-.admin-section { max-width:900px; margin:2rem auto; padding:1rem; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
-textarea { resize:none; }
-table th, table td { text-align:center; }
+body { font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; }
+.container { max-width:600px; margin:auto; }
+h2 { text-align:center; margin-bottom:20px; }
+footer { text-align:center; margin-top:30px; }
 </style>
 </head>
 <body>
 
-<div class="admin-section">
-  <h3>پنل ادمین</h3>
+<div class="container">
+  <h2>ورود ادمین</h2>
+  <input type="text" id="username" class="form-control mb-2" placeholder="نام کاربری">
+  <input type="password" id="password" class="form-control mb-2" placeholder="رمز عبور">
+  <button class="btn btn-primary w-100 mb-3" onclick="login()">ورود</button>
 
-  <!-- ورود ادمین -->
-  <div id="adminLogin">
-    <input type="text" id="adminUsername" class="form-control mb-2" placeholder="نام کاربری ادمین">
-    <input type="password" id="adminPassword" class="form-control mb-2" placeholder="رمز عبور ادمین">
-    <button class="btn btn-primary w-100" onclick="adminLogin()">ورود</button>
-  </div>
-
-  <!-- پنل ادمین -->
   <div id="adminPanel" style="display:none;">
-    <h5 class="mt-3">اضافه / ویرایش پرامپت</h5>
-
-    <div class="row g-2 mb-2">
-      <div class="col-md-6">
-        <input type="number" id="promptId" class="form-control mb-2" placeholder="برای ویرایش، شماره ردیف (ID)">
-        <input type="text" id="promptName" class="form-control mb-2" placeholder="نام پرامپت">
-        <textarea id="promptText" class="form-control mb-2" placeholder="متن پرامپت"></textarea>
-        <input type="text" id="promptSource" class="form-control mb-2" placeholder="منبع">
-      </div>
-      <div class="col-md-6">
-        <input type="text" id="promptOwner" class="form-control mb-2" placeholder="نام">
-        <textarea id="promptDescription" class="form-control mb-2" placeholder="شرح (HTML مجاز)"></textarea>
-        <select id="promptCategory" class="form-select mb-2">
-          <option value="دسته1">دسته1</option>
-          <option value="دسته2">دسته2</option>
-          <option value="دسته3">دسته3</option>
-        </select>
-        <button class="btn btn-success w-100 mb-2" onclick="addOrUpdatePrompt()">ثبت / ویرایش پرامپت</button>
-      </div>
-    </div>
-
-    <h5 class="mt-4">لیست پرامپت‌ها</h5>
-    <div class="table-responsive">
-      <table class="table table-striped table-bordered">
-        <thead class="table-primary">
-          <tr>
-            <th>ID</th>
-            <th>نام پرامپت</th>
-            <th>متن پرامپت</th>
-            <th>منبع</th>
-            <th>نام</th>
-            <th>شرح</th>
-            <th>دسته‌بندی</th>
-          </tr>
-        </thead>
-        <tbody id="promptTable"></tbody>
-      </table>
-    </div>
-
+    <h3>ثبت پرامپت جدید</h3>
+    <input type="text" id="name" class="form-control mb-2" placeholder="نام پرامپت">
+    <textarea id="text" class="form-control mb-2" placeholder="متن پرامپت"></textarea>
+    <input type="text" id="source" class="form-control mb-2" placeholder="منبع">
+    <input type="text" id="category" class="form-control mb-2" placeholder="دسته بندی">
+    <input type="text" id="description" class="form-control mb-2" placeholder="شرح">
+    <button class="btn btn-success w-100" onclick="addPrompt()">ثبت</button>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.10.0/dist/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jalaali-js@1.1.0/dist/jalaali.min.js"></script>
+<footer>
+  طراحی و توسعه دهنده @raz3400
+</footer>
 
 <script>
-const supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-const supabaseKey = 'YOUR_ANON_KEY';
+// اتصال به Supabase
+const supabaseUrl = 'YOUR_SUPABASE_URL';             // ← آدرس پروژه‌ات در Supabase
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';        // ← کلید anon پروژه‌ات
 const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+// اطلاعات ربات تلگرام
+const TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN';  // ← توکن ربات
+const TELEGRAM_CHAT_ID = 'YOUR_SUPERGROUP_CHAT_ID';    // ← آیدی سوپرگروه (مثال: -100123456789)
+const TELEGRAM_TOPIC_ID = 'YOUR_TOPIC_ID';             // ← آیدی تاپیک (مثال: 34547)
+
 // ورود ادمین
-const adminUsername = "bitaadmin";
-const adminPassword = "123456";
+async function login(){
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
 
-function adminLogin(){
-  const username = document.getElementById('adminUsername').value;
-  const password = document.getElementById('adminPassword').value;
-  if(username === adminUsername && password === adminPassword){
-    document.getElementById('adminLogin').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    loadPrompts();
-  } else {
-    alert("نام کاربری یا رمز عبور اشتباه است");
+  const { data, error } = await supabase
+    .from('admins')
+    .select('*')
+    .eq('username', username)
+    .eq('password', password);
+
+  if(error || !data || data.length === 0){
+    alert('نام کاربری یا رمز عبور اشتباه است ❌');
+    return;
   }
+
+  document.getElementById('adminPanel').style.display = 'block';
+  alert('ورود موفق ✅');
 }
 
-// زمان ایران و تاریخ شمسی
-function getIranTime(){
-  const now = new Date();
-  const offset = 3.5*60; // GMT+3:30
-  return new Date(now.getTime() + (offset - now.getTimezoneOffset())*60000);
-}
-function getShamsiDate(){
-  const now = getIranTime();
-  const j = jalaali.toJalaali(now);
-  return `${j.jy}/${j.jm}/${j.jd}`;
-}
-function getTrackingCode(){
-  return Math.random().toString(36).substring(2,10).toUpperCase();
-}
+// افزودن پرامپت
+async function addPrompt(){
+  const name = document.getElementById('name').value;
+  const text = document.getElementById('text').value;
+  const source = document.getElementById('source').value;
+  const category = document.getElementById('category').value;
+  const description = document.getElementById('description').value;
 
-// پیام تلگرام
-async function sendTelegramNotification(prompt){
-  const botToken = "YOUR_BOT_TOKEN";
-  const chatId = "YOUR_SUPERGROUP_CHAT_ID";
+  const date = new Date();
+  const iranOffset = 4.5 * 60;
+  const localDate = new Date(date.getTime() + iranOffset*60000);
+  const dateShamsi = localDate.toLocaleDateString('fa-IR');
+  const time = localDate.toLocaleTimeString('fa-IR');
+  const trackingCode = 'P' + Date.now();
 
-  const message = `
-📌 پرامپت ثبت / ویرایش شد!
-📝 نام پرامپت: ${prompt.name}
-💬 متن: ${prompt.text}
-🌐 منبع: ${prompt.source}
-👤 نام: ${prompt.owner}
-📝 شرح: ${prompt.description}
-📂 دسته‌بندی: ${prompt.category}
-🗓 تاریخ شمسی: ${prompt.date_shamsi}
-⏰ ساعت ایران: ${prompt.time_iran}
-🆔 کد رهگیری: ${prompt.tracking_code}
-`;
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({chat_id: chatId,text: message,parse_mode:"HTML"})
-  });
-}
+  const { error } = await supabase.from('prompts').insert([{
+    name, text, source, category, description, dateShamsi, time, trackingCode
+  }]);
 
-// افزودن یا ویرایش پرامپت
-async function addOrUpdatePrompt(){
-  const id = document.getElementById('promptId').value;
-  const name = document.getElementById('promptName').value;
-  const text = document.getElementById('promptText').value;
-  const source = document.getElementById('promptSource').value;
-  const owner = document.getElementById('promptOwner').value;
-  const description = document.getElementById('promptDescription').value;
-  const category = document.getElementById('promptCategory').value;
-
-  const date_shamsi = getShamsiDate();
-  const time_iran = getIranTime().toLocaleTimeString('fa-IR');
-  const tracking_code = getTrackingCode();
-
-  if(id){ // ویرایش
-    const { error } = await supabase.from('prompts').update({
-      name,text,source,owner,description,category,date_shamsi,time_iran,tracking_code
-    }).eq('id', id);
-    if(!error){
-      sendTelegramNotification({name,text,source,owner,description,category,date_shamsi,time_iran,tracking_code});
-      alert("ویرایش موفق ✅");
-      loadPrompts();
-    }
-  } else { // افزودن
-    const { error } = await supabase.from('prompts').insert([{
-      name,text,source,owner,description,category,date_shamsi,time_iran,tracking_code
-    }]);
-    if(!error){
-      sendTelegramNotification({name,text,source,owner,description,category,date_shamsi,time_iran,tracking_code});
-      alert("ثبت موفق ✅");
-      loadPrompts();
-    }
+  if(error){ 
+    alert('خطا در ثبت: ' + error.message); 
+    return; 
   }
-}
 
-// نمایش پرامپت‌ها در جدول
-async function loadPrompts(){
-  const { data, error } = await supabase.from('prompts').select('*').order('id');
-  if(error){ console.error(error); return; }
-  const tbody = document.getElementById('promptTable');
-  tbody.innerHTML = '';
-  data.forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.id}</td>
-      <td>${r.name}</td>
-      <td>${r.text}</td>
-      <td>${r.source}</td>
-      <td>${r.owner}</td>
-      <td>${r.description}</td>
-      <td>${r.category}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  const message = `📝 پرامپت جدید ثبت شد\n\n` +
+  `📌 نام پرامپت: ${name}\n` +
+  `💬 متن پرامپت: ${text}\n` +
+  `🔗 منبع: ${source}\n` +
+  `📂 دسته بندی: ${category}\n` +
+  `📝 شرح: ${description}\n` +
+  `📅 تاریخ ثبت: ${dateShamsi}\n` +
+  `⏰ ساعت ثبت: ${time}\n` +
+  `🔑 کد رهگیری: ${trackingCode}`;
+
+  // ارسال پیام به سوپرگروه + تاپیک
+  fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      message_thread_id: TELEGRAM_TOPIC_ID,
+      text: message
+    })
+  })
+    .then(() => alert('ثبت شد و پیام به سوپرگروه ارسال شد ✅'))
+    .catch(err => alert('پیام تلگرام ارسال نشد: ' + err));
+
+  // پاک کردن فرم
+  document.getElementById('name').value = '';
+  document.getElementById('text').value = '';
+  document.getElementById('source').value = '';
+  document.getElementById('category').value = '';
+  document.getElementById('description').value = '';
 }
 </script>
 
